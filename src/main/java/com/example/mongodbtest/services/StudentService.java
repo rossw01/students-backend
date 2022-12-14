@@ -3,12 +3,14 @@ package com.example.mongodbtest.services;
 import com.example.mongodbtest.domain.Student;
 import com.example.mongodbtest.repositories.StudentRepository;
 import lombok.AllArgsConstructor;
+import org.bson.types.ObjectId;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 @AllArgsConstructor
@@ -38,10 +40,20 @@ public class StudentService {
         }
     }
     public ResponseEntity<Object> addStudent(Student student) {
-        if (studentRepository.findById(student.getId()).isPresent()) {
-            return new ResponseEntity<>("A student with that ID has already been added", HttpStatus.CONFLICT);
+        try {
+            if (Objects.isNull(student.getId())) { // If there hasn't been an ID chosen, generate one.
+                student.setId((new ObjectId().toString()));
+            } // If the ID that was chosen already exists, reject
+            if (studentRepository.findById(student.getId()).isPresent()) {
+                return new ResponseEntity<>("A student with that ID has already been added", HttpStatus.CONFLICT);
+            }
+            if (studentRepository.findStudentByEmailEquals(student.getEmail()).isPresent()) {
+                return new ResponseEntity<>("A student with that Email has already been added", HttpStatus.CONFLICT);
+            }
+            return new ResponseEntity<>(studentRepository.save(student), HttpStatus.OK);
+        } catch (Exception e) {
+            return new ResponseEntity<>("Failed to add student (Did you miss out some fields?)", HttpStatus.INTERNAL_SERVER_ERROR);
         }
-        return new ResponseEntity<>("Student '" + student.getFirstName() + " " + student.getLastName() + "' Inserted", HttpStatus.OK);
     }
     public ResponseEntity<Object> updateStudent(String id, Student student) {
         Optional<Student> studentData = studentRepository.findById(id);
